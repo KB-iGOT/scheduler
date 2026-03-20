@@ -1,19 +1,32 @@
 FROM node:16
 
-#Set working directory
+# Create non-root user
+RUN useradd -m appuser
+
+# Set working directory
 WORKDIR /var/src/
 
-#Copy package.json file
-COPY ./src/package.json .
+# Give permission to the non-root user
+RUN chown -R appuser:appuser /var/src
 
-#Install node packages
-RUN npm install && npm install -g nodemon@2.0.16 && npm i is-stream 
+# Switch to the non-root user
+USER appuser
 
-#Copy all files 
-COPY ./src .
+# Copy package.json first (better caching)
+COPY --chown=appuser:appuser ./src/package.json .
 
-#Expose the application port
+# Install node packages (global installs must run as root → switch temporarily)
+USER root
+RUN npm install && npm install -g nodemon@2.0.16 && npm i is-stream
+
+# Switch back to non-root user
+USER appuser
+
+# Copy all other files
+COPY --chown=appuser:appuser ./src .
+
+# Expose the application port
 EXPOSE 4000
 
-#Start the application
-CMD [ "node", "app.js" ]
+# Start the application
+CMD ["node", "app.js"]
